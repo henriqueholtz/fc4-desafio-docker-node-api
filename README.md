@@ -10,12 +10,12 @@ As migrações rodam automaticamente: no dev, via `command` (`npm run db:migrate
 
 - Repositório: https://hub.docker.com/r/henriqueholtz/fc4-desafio-docker-node-api
 - Pull: `docker pull henriqueholtz/fc4-desafio-docker-node-api:1.0.0`
-- Digest do manifest (1.0.0 = latest): `<PREENCHER: sha256:...>`
+- Digest do manifest (1.0.0 = latest): `sha256:9e614c70b18c6ff31c5eb1c31b4eccb88ea330f7cf31314ba2f90bde09c2683d`
 
 | Imagem | Tamanho |
 |---|---|
 | dev (`--target dev`) | ~211 MB |
-| production (linux/amd64) | ~171 MB (`<PREENCHER após pull>`) |
+| production (linux/amd64) | 171 MB (`docker image ls` após `docker pull --platform linux/amd64`) |
 
 ## Decisões técnicas
 
@@ -73,9 +73,9 @@ docker scout cves --only-severity critical --only-fixed $IMG
 
 Relatório completo: [reports/scout-cves.txt](reports/scout-cves.txt).
 
-**Resumo do Scout:** `<PREENCHER: contagem por severidade>`.
+**Resumo do Scout:** 109 pacotes indexados; 0 CRITICAL, 0 HIGH, 0 MEDIUM, 0 LOW e 1 UNSPECIFIED. `--only-severity critical --only-fixed` retorna "No vulnerable package detected"..
 
-**CVEs remanescentes (HIGH / CRITICAL sem correção):** `<PREENCHER: lista e justificativa, ou "nenhuma">`.
+**CVEs remanescentes (HIGH / CRITICAL sem correção):** nenhuma HIGH nem CRITICAL. Resta apenas CVE-2026-107891 em `musl 1.2.6-r3` (severidade UNSPECIFIED), cuja correção (`1.2.6-r6`) ainda não foi publicada nos repositórios do Alpine 3.24 (um `apk upgrade` na build não a traz). Mitigação: a imagem usa base fixada e deve ser reconstruída quando o Alpine publicar o pacote corrigido..
 
 ## Validação
 
@@ -101,4 +101,4 @@ Relatório completo: [reports/scout-cves.txt](reports/scout-cves.txt).
 | Stop < 10 s | `time docker stop flags-api-prod-app-1` |
 | Scout sem CRITICAL corrigível | `docker scout cves --only-severity critical --only-fixed $IMG` |
 | prod sem build, restart, limites, sem bind mount | `docker compose -f compose.prod.yaml config` |
-| Código da aplicação intacto | `git diff --stat <commit-base> -- src package.json package-lock.json tsconfig.json` |
+| Código da aplicação intacto | `git diff --stat c956e42 -- src package.json package-lock.json tsconfig.json` |
