@@ -14,12 +14,12 @@ As migrações rodam automaticamente: no dev, via `command` (`npm run db:migrate
 
 | Imagem | Tamanho |
 |---|---|
-| dev (`--target dev`) | ~211 MB |
+| dev (`--target dev`) | 211 MB |
 | production (linux/amd64) | 171 MB (`docker image ls` após `docker pull --platform linux/amd64`) |
 
 ## Decisões técnicas
 
-**Base de produção: `node:22.23.4-alpine3.24`.** Alpine (musl) mantém a imagem em ~170 MB, traz usuário `node` não-root e é a base oficial com versão fixada. Alternativas consideradas: `node:22-slim` (Debian, ~230 MB, mais pacotes e mais CVEs de SO) e distroless (`gcr.io/distroless/nodejs22`, menor superfície, porém sem shell, dificultando debug em um ambiente que será submetido a pentest e sem tag semver de Node tão granular). Como as dependências (`express`, `pg`, `dotenv`) são JS puro, musl não é problema. No estágio final, npm, npx, corepack e yarn são removidos: não são necessários em runtime e reduzem superfície de ataque e CVEs.
+**Base de produção: `node:22.23.4-alpine3.24`.** Alpine (musl) mantém a imagem em ~170 MB, traz usuário `node` não-root e é a base oficial com versão fixada. Alternativas consideradas: `node:22-slim` (Debian, estimado em ~230 MB, com mais pacotes e potencialmente mais CVEs de SO) e distroless (`gcr.io/distroless/nodejs22`, menor superfície, porém sem shell, o que dificulta o debug operacional e a execução de scripts de inicialização). Como as dependências (`express`, `pg`, `dotenv`) são JS puro, musl não é problema. No estágio final, npm, npx, corepack e yarn são removidos: não são necessários em runtime e reduzem superfície de ataque e CVEs.
 
 **Cache de build.** `package.json` e `package-lock.json` são copiados antes do código, de modo que a camada de `npm ci` só é invalidada quando as dependências mudam. Todo `npm ci` usa `RUN --mount=type=cache,target=/root/.npm`, reaproveitando o cache de download do npm entre builds. Um estágio `prod-deps` isola `npm ci --omit=dev`, e `production` copia apenas `node_modules` de produção e `dist/`.
 
@@ -71,11 +71,20 @@ docker buildx imagetools inspect $IMG --format '{{json .Provenance}}'
 docker scout cves --only-severity critical --only-fixed $IMG
 ```
 
+**Evidências (imagem publicada):**
+
+- Plataformas: `docker buildx imagetools inspect $IMG` lista `linux/amd64` e `linux/arm64`, mais duas entradas `unknown/unknown` com `vnd.docker.reference.type: attestation-manifest` (as attestations de SBOM e provenance, uma por plataforma).
+- SBOM: documento SPDX gerado por `syft` + `buildkit` (`creators: Tool: syft-v1.51.0`).
+- Provenance: predicado SLSA do BuildKit, com `build-arg:VERSION: 1.0.0` e `configSource.path: Dockerfile`.
+- Tags `1.0.0` e `latest` apontam para o mesmo digest `sha256:9e614c70…2683d`.
+
 Relatório completo: [reports/scout-cves.txt](reports/scout-cves.txt).
 
-**Resumo do Scout:** 109 pacotes indexados; 0 CRITICAL, 0 HIGH, 0 MEDIUM, 0 LOW e 1 UNSPECIFIED. `--only-severity critical --only-fixed` retorna "No vulnerable package detected"..
+**Nota sobre dependências:** a imagem de produção atualiza três dependências transitivas (`proxy-addr`, `body-parser`, `qs`) apenas no `node_modules`, divergindo intencionalmente do `package-lock.json`, que não pode ser alterado neste desafio. Em um projeto real, a correção seria feita no lockfile.
 
-**CVEs remanescentes (HIGH / CRITICAL sem correção):** nenhuma HIGH nem CRITICAL. Resta apenas CVE-2026-107891 em `musl 1.2.6-r3` (severidade UNSPECIFIED), cuja correção (`1.2.6-r6`) ainda não foi publicada nos repositórios do Alpine 3.24 (um `apk upgrade` na build não a traz). Mitigação: a imagem usa base fixada e deve ser reconstruída quando o Alpine publicar o pacote corrigido..
+**Resumo do Scout:** 109 pacotes indexados; 0 CRITICAL, 0 HIGH, 0 MEDIUM, 0 LOW e 1 UNSPECIFIED. `--only-severity critical --only-fixed` retorna "No vulnerable package detected".
+
+**CVEs remanescentes (HIGH / CRITICAL sem correção):** nenhuma HIGH nem CRITICAL. Resta apenas CVE-2026-107891 em `musl 1.2.6-r3` (severidade UNSPECIFIED), cuja correção (`1.2.6-r6`) ainda não foi publicada nos repositórios do Alpine 3.24 (um `apk upgrade` na build não a traz). Mitigação: a imagem usa base fixada e deve ser reconstruída quando o Alpine publicar o pacote corrigido.
 
 ## Validação
 
