@@ -26,10 +26,14 @@ COPY src ./src
 RUN npm run build
 
 # ---------- prod-deps: somente dependências de produção ----------
+# package-lock.json não pode ser alterado: as transitivas vulneráveis do lock
+# (proxy-addr, body-parser, qs) são atualizadas apenas no node_modules da imagem.
 FROM base AS prod-deps
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev
+    npm ci --omit=dev && \
+    npm install --no-save --omit=dev --ignore-scripts \
+        proxy-addr@2.0.8 body-parser@2.4.0 qs@6.16.0
 
 # ---------- production: imagem final enxuta ----------
 FROM ${NODE_IMAGE} AS production

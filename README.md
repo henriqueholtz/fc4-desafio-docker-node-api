@@ -23,6 +23,8 @@ As migrações rodam automaticamente: no dev, via `command` (`npm run db:migrate
 
 **Cache de build.** `package.json` e `package-lock.json` são copiados antes do código, de modo que a camada de `npm ci` só é invalidada quando as dependências mudam. Todo `npm ci` usa `RUN --mount=type=cache,target=/root/.npm`, reaproveitando o cache de download do npm entre builds. Um estágio `prod-deps` isola `npm ci --omit=dev`, e `production` copia apenas `node_modules` de produção e `dist/`.
 
+**Dependências transitivas vulneráveis.** O `package-lock.json` (que não pode ser alterado) fixa `proxy-addr@2.0.7` (CRITICAL, CVE-2026-90711), `body-parser@2.3.0` (HIGH, CVE-2026-111181) e `qs@6.15.3` (MEDIUM, CVE-2026-82562 e CVE-2026-82417). No estágio `prod-deps`, após o `npm ci --omit=dev`, um `npm install --no-save` atualiza apenas essas três para as versões corrigidas (`2.0.8`, `2.4.0`, `6.16.0`) dentro do `node_modules` da imagem, sem tocar nos arquivos do repositório. As versões são compatíveis com os ranges exigidos pelo `express@5.2.1`.
+
 ## Como rodar (desenvolvimento)
 
 ```bash
