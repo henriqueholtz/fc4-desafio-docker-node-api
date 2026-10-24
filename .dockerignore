@@ -1,0 +1,17 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+Dockerfile
+.dockerignore
+compose*.yaml
+reports
+Challenge.md
+README.md
+*.log
+.vscode
+.idea
+.claude
